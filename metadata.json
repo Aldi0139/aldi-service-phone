@@ -1,0 +1,6 @@
+{
+  "name": "Aldi Service Phone ERP",
+  "description": "Sistem ERP Android dan Web untuk mengelola operasional, transaksi kasir, dan layanan perbaikan (service) handphone di konter Aldi Service Phone (ASP).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

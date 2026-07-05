@@ -1,0 +1,137 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with role assignment for ERP access control.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique identifier matching Firebase Auth UID."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User's email address."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User's profile photo URL."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["Owner", "Kasir", "Teknisi"],
+          "description": "The role of the user determining access permissions."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time the profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time the profile was last updated."
+        }
+      },
+      "required": ["uid", "email", "displayName", "role", "createdAt", "updatedAt"]
+    },
+    "ServiceHP": {
+      "title": "Service HP Job",
+      "description": "Service HP order record including diagnosis, costs, and state.",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "phoneBrand": { "type": "string" },
+        "phoneModel": { "type": "string" },
+        "imei": { "type": "string" },
+        "issue": { "type": "string" },
+        "estimatedCost": { "type": "number" },
+        "capitalCost": { "type": "number" },
+        "price": { "type": "number" },
+        "profit": { "type": "number" },
+        "entryDate": { "type": "string", "format": "date-time" },
+        "pickupDate": { "type": "string", "format": "date-time" },
+        "technician": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["Proses", "Menunggu Sparepart", "Selesai", "Sudah Diambil"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "customerName", "customerPhone", "phoneBrand", "phoneModel", "imei",
+        "issue", "estimatedCost", "capitalCost", "price", "profit",
+        "entryDate", "technician", "notes", "status", "createdBy",
+        "createdAt", "updatedAt"
+      ]
+    },
+    "PPOBRecord": {
+      "title": "PPOB Shift Record",
+      "description": "Ledger entry of PPOB transactions recorded per shift.",
+      "type": "object",
+      "properties": {
+        "shiftName": { "type": "string" },
+        "transactionCount": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "cashWithdrawal": { "type": "number" },
+        "incomingBalance": { "type": "number" },
+        "startingBalance": { "type": "number" },
+        "endingBalance": { "type": "number" },
+        "basicPrice": { "type": "number" },
+        "fee": { "type": "number" },
+        "physicalBalance": { "type": "number" },
+        "status": { "type": "string", "enum": ["Normal", "Fee Terlalu Rendah", "Fee Terlalu Tinggi"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "shiftName", "transactionCount", "sellingPrice", "cashWithdrawal", "incomingBalance",
+        "startingBalance", "endingBalance", "basicPrice", "fee", "physicalBalance", "status",
+        "createdBy", "createdAt", "updatedAt"
+      ]
+    },
+    "KasLedger": {
+      "title": "Buku Kas Record",
+      "description": "Ledger entry of cash register transactions.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["masuk", "keluar"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["Service", "PPOB", "Aksesoris", "Operasional", "Piutang", "Lainnya"] },
+        "time": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "type", "amount", "description", "category", "time", "createdBy", "createdAt", "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Individual user document containing profile and authorization role."
+    },
+    "services/{serviceId}": {
+      "schema": "ServiceHP",
+      "description": "Collection of HP service orders."
+    },
+    "ppob_records/{recordId}": {
+      "schema": "PPOBRecord",
+      "description": "Ledger of PPOB shift entries."
+    },
+    "kas_records/{recordId}": {
+      "schema": "KasLedger",
+      "description": "Collection of cash register ledger entries."
+    }
+  }
+}

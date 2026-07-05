@@ -1,0 +1,235 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function getUserRole(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    }
+
+    function hasRole(role) {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserRole(request.auth.uid) == role;
+    }
+
+    function isBootstrappedOwner() {
+      return isSignedIn() && request.auth.token.email == 'sideincomechanel@gmail.com';
+    }
+
+    function isUserOwner(uid) {
+      return hasRole('Owner') || isBootstrappedOwner();
+    }
+
+    // Validation for User profile
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().size() == 7
+        && data.uid is string && data.uid.size() <= 128
+        && data.email is string && data.email.size() <= 256
+        && data.displayName is string && data.displayName.size() <= 256
+        && data.photoURL is string && data.photoURL.size() <= 1024
+        && data.role is string && (data.role == 'Owner' || data.role == 'Kasir' || data.role == 'Teknisi')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isStaff() {
+      return isSignedIn() && (
+        isBootstrappedOwner() ||
+        exists(/databases/$(database)/documents/users/$(request.auth.uid))
+      );
+    }
+
+    // Validation for Service HP Job
+    function isValidService(data) {
+      return data.keys().hasAll([
+        'customerName', 'customerPhone', 'phoneBrand', 'phoneModel', 'imei',
+        'issue', 'estimatedCost', 'capitalCost', 'price', 'profit',
+        'entryDate', 'technician', 'notes', 'status', 'createdBy',
+        'createdAt', 'updatedAt'
+      ])
+      && data.customerName is string && data.customerName.size() <= 256
+      && data.customerPhone is string && data.customerPhone.size() <= 64
+      && data.phoneBrand is string && data.phoneBrand.size() <= 128
+      && data.phoneModel is string && data.phoneModel.size() <= 128
+      && data.imei is string && data.imei.size() <= 64
+      && data.issue is string && data.issue.size() <= 1024
+      && (data.estimatedCost is int || data.estimatedCost is float)
+      && (data.capitalCost is int || data.capitalCost is float)
+      && (data.price is int || data.price is float)
+      && (data.profit is int || data.profit is float)
+      && data.entryDate is timestamp
+      && (!data.keys().contains('pickupDate') || data.pickupDate is timestamp || data.pickupDate == null)
+      && data.technician is string && data.technician.size() <= 128
+      && data.notes is string && data.notes.size() <= 2048
+      && data.status is string && (
+        data.status == 'Proses' ||
+        data.status == 'Menunggu Sparepart' ||
+        data.status == 'Selesai' ||
+        data.status == 'Sudah Diambil'
+      )
+      && data.createdBy is string && data.createdBy.size() <= 128
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    // Validation for PPOB Record
+    function isValidPpobRecord(data) {
+      return data.keys().hasAll([
+        'shiftName', 'transactionCount', 'sellingPrice', 'cashWithdrawal', 'incomingBalance',
+        'startingBalance', 'endingBalance', 'basicPrice', 'fee', 'physicalBalance', 'status',
+        'createdBy', 'createdAt', 'updatedAt'
+      ])
+      && data.shiftName is string && data.shiftName.size() <= 256
+      && (data.transactionCount is int || data.transactionCount is float)
+      && (data.sellingPrice is int || data.sellingPrice is float)
+      && (data.cashWithdrawal is int || data.cashWithdrawal is float)
+      && (data.incomingBalance is int || data.incomingBalance is float)
+      && (data.startingBalance is int || data.startingBalance is float)
+      && (data.endingBalance is int || data.endingBalance is float)
+      && (data.basicPrice is int || data.basicPrice is float)
+      && (data.fee is int || data.fee is float)
+      && (data.physicalBalance is int || data.physicalBalance is float)
+      && data.status is string && (
+        data.status == 'Normal' ||
+        data.status == 'Fee Terlalu Rendah' ||
+        data.status == 'Fee Terlalu Tinggi'
+      )
+      && data.createdBy is string && data.createdBy.size() <= 128
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    // Validation for Kas Record
+    function isValidKasRecord(data) {
+      return data.keys().hasAll([
+        'type', 'amount', 'description', 'category', 'time',
+        'createdBy', 'createdAt', 'updatedAt'
+      ])
+      && data.type is string && (data.type == 'masuk' || data.type == 'keluar')
+      && (data.amount is int || data.amount is float)
+      && data.description is string && data.description.size() <= 1024
+      && data.category is string && (
+        data.category == 'Service' ||
+        data.category == 'PPOB' ||
+        data.category == 'Aksesoris' ||
+        data.category == 'Operasional' ||
+        data.category == 'Piutang' ||
+        data.category == 'Lainnya'
+      )
+      && data.time is string && data.time.size() <= 64
+      && data.createdBy is string && data.createdBy.size() <= 128
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    // 2. Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isUserOwner(request.auth.uid));
+      allow list: if isSignedIn() && isUserOwner(request.auth.uid);
+      
+      allow create: if isSignedIn() 
+        && request.auth.uid == userId 
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (incoming().role == 'Owner' ? isBootstrappedOwner() : true);
+
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().createdAt == existing().createdAt
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && (
+          // Owner can update everything (including roles)
+          isUserOwner(request.auth.uid) ||
+          // User can update their own profile EXCEPT their role
+          (request.auth.uid == userId && incoming().role == existing().role)
+        );
+
+      allow delete: if isSignedIn() && isUserOwner(request.auth.uid);
+    }
+
+    // 3. Services Collection
+    match /services/{serviceId} {
+      allow get, list: if isStaff();
+      
+      allow create: if isStaff()
+        && isValidId(serviceId)
+        && isValidService(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isStaff()
+        && isValidId(serviceId)
+        && isValidService(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().createdAt == existing().createdAt
+        && incoming().createdBy == existing().createdBy;
+
+      allow delete: if isSignedIn() && isUserOwner(request.auth.uid);
+    }
+
+    // 4. PPOB Records Collection
+    match /ppob_records/{recordId} {
+      allow get, list: if isStaff();
+      
+      allow create: if isStaff()
+        && isValidId(recordId)
+        && isValidPpobRecord(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isStaff()
+        && isValidId(recordId)
+        && isValidPpobRecord(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().createdAt == existing().createdAt
+        && incoming().createdBy == existing().createdBy;
+
+      allow delete: if isSignedIn() && isUserOwner(request.auth.uid);
+    }
+
+    // 5. Kas Records Collection
+    match /kas_records/{recordId} {
+      allow get, list: if isStaff();
+      
+      allow create: if isStaff()
+        && isValidId(recordId)
+        && isValidKasRecord(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isStaff()
+        && isValidId(recordId)
+        && isValidKasRecord(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().createdAt == existing().createdAt
+        && incoming().createdBy == existing().createdBy;
+
+      allow delete: if isSignedIn() && isUserOwner(request.auth.uid);
+    }
+  }
+}
